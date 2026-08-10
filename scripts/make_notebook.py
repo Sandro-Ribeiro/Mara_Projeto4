@@ -183,6 +183,144 @@ testar_significancia(df, 'RendaFamiliar')
 testar_significancia(df, 'CorRaca')
 testar_significancia(df, 'FaixaEtaria')""")
 
+add_md("## 8. Análise de Correspondência Múltipla (ACM)\nPara visualizar a associação multidimensional entre as categorias de perfil (Cor/Raça, Renda, Idade, Gênero) e a situação de conclusão do aluno, aplicamos a Análise de Correspondência Múltipla (ACM).\n\n### Justificativa da Correção de Benzécri\nNa ACM clássica, a variância explicada (inércia) pelas primeiras dimensões é tipicamente subestimada devido à expansão da matriz de dados para uma matriz indicadora binária (dummy), que infla artificialmente a inércia total. Para mitigar esse efeito e apresentar um percentual mais realista e rigoroso da variância explicada pelas principais dimensões no relatório de TCC, aplicamos a **Correção de Benzécri** nos autovalores do modelo.")
+
+add_code("""import prince
+
+# 1. Preparar os dados expandindo a contagem para registros individuais
+perfil_cols = ['CorRaca', 'RendaFamiliar', 'FaixaEtaria', 'Sexo']
+
+# Agrupar pelos perfis para consolidar e limpar
+df_agrupado = df.groupby(perfil_cols).agg(
+    ingressantes=('Número de ingressantes', 'sum'),
+    concluintes=('Número de concluintes', 'sum')
+).reset_index()
+
+# Filtramos apenas perfis com amostra representativa (mais de 100 ingressantes historicamente)
+df_agrupado = df_agrupado[df_agrupado['ingressantes'] > 100].copy()
+
+# Criar lista de registros individuais
+registros = []
+for idx, row in df_agrupado.iterrows():
+    c = int(row['concluintes'])
+    nc = int(row['ingressantes'] - row['concluintes'])
+    
+    # Criamos os registros individuais
+    for _ in range(c):
+        registros.append({
+            'CorRaca': row['CorRaca'],
+            'RendaFamiliar': row['RendaFamiliar'],
+            'FaixaEtaria': row['FaixaEtaria'],
+            'Sexo': row['Sexo'],
+            'Situacao': 'Concluinte'
+        })
+    for _ in range(nc):
+        registros.append({
+            'CorRaca': row['CorRaca'],
+            'RendaFamiliar': row['RendaFamiliar'],
+            'FaixaEtaria': row['FaixaEtaria'],
+            'Sexo': row['Sexo'],
+            'Situacao': 'Não Concluinte'
+        })
+
+df_individual = pd.DataFrame(registros)
+print(f"Total de registros individuais gerados para a ACM: {len(df_individual)}")
+df_individual.head()""")
+
+add_code("""# 2. Instanciar e ajustar o modelo ACM com a Correção de Benzécri
+# A correção de Benzécri ajusta os autovalores (eigenvalues) para corrigir a subestimação
+# da inércia explicada gerada pela matriz indicadora binária.
+mca = prince.MCA(
+    n_components=2,
+    n_iter=5,
+    copy=True,
+    check_input=True,
+    engine='sklearn',
+    correction='benzecri',  # Aplica a correção de Benzécri nativamente
+    random_state=42
+)
+mca = mca.fit(df_individual)
+
+# 3. Obter as coordenadas das categorias
+col_coords = mca.column_coordinates(df_individual)
+col_coords.columns = ['Dim 1', 'Dim 2']
+
+# Inércia explicada (com correção de Benzécri já aplicada)
+percent_expl = mca.percentage_of_variance_
+print(f"Inércia explicada na Dim 1 (Corrigida por Benzécri): {percent_expl[0]:.2f}%")
+print(f"Inércia explicada na Dim 2 (Corrigida por Benzécri): {percent_expl[1]:.2f}%")
+col_coords.head()""")
+
+add_code("""# 4. Plotar o Biplot com matplotlib e seaborn
+plt.figure(figsize=(14, 10))
+
+# Processar os labels do índice para melhor apresentação visual
+categorias = col_coords.index.tolist()
+variaveis = []
+labels_limpos = []
+
+for cat in categorias:
+    for var in ['CorRaca', 'RendaFamiliar', 'FaixaEtaria', 'Sexo', 'Situacao']:
+        if cat.startswith(var):
+            variaveis.append(var)
+            labels_limpos.append(cat.replace(var + '_', ''))
+            break
+    else:
+        variaveis.append('Outros')
+        labels_limpos.append(cat)
+
+col_coords['Variavel'] = variaveis
+col_coords['Label_Limpa'] = labels_limpos
+
+# Plot dos pontos
+sns.scatterplot(
+    data=col_coords, 
+    x='Dim 1', 
+    y='Dim 2', 
+    hue='Variavel', 
+    style='Variavel', 
+    s=180, 
+    palette='Set1',
+    edgecolor='black',
+    linewidth=0.8
+)
+
+# Adicionar labels textuais
+for idx, row in col_coords.iterrows():
+    if row['Variavel'] == 'Situacao':
+        # Destacar os desfechos Concluinte / Não Concluinte
+        cor_fundo = '#ffe6e6' if 'Não' in row['Label_Limpa'] else '#e6ffe6'
+        plt.text(
+            row['Dim 1'] + 0.02, 
+            row['Dim 2'], 
+            row['Label_Limpa'], 
+            fontsize=13, 
+            weight='bold', 
+            color='black',
+            bbox=dict(facecolor=cor_fundo, edgecolor='black', alpha=0.9, boxstyle='round,pad=0.4')
+        )
+    else:
+        plt.text(
+            row['Dim 1'] + 0.015, 
+            row['Dim 2'] + 0.005, 
+            row['Label_Limpa'], 
+            fontsize=10.5, 
+            color='darkslategray',
+            weight='semibold'
+        )
+
+# Desenhar eixos centrais
+plt.axhline(0, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
+plt.axvline(0, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
+
+plt.title(f'Biplot da Análise de Correspondência Múltipla (ACM) com Correção de Benzécri\\nDim 1 ({percent_expl[0]:.2f}%) vs Dim 2 ({percent_expl[1]:.2f}%)', fontsize=14, weight='bold', pad=15)
+plt.xlabel(f'Dimensão 1 ({percent_expl[0]:.2f}%)', fontsize=12, labelpad=10)
+plt.ylabel(f'Dimensão 2 ({percent_expl[1]:.2f}%)', fontsize=12, labelpad=10)
+plt.legend(title='Variáveis', title_fontsize='11', loc='best', frameon=True)
+plt.grid(True, linestyle=':', alpha=0.5)
+plt.tight_layout()
+plt.show()""")
+
 import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 notebook_path = os.path.join(script_dir, '../Notebooks/notePerfisCandidatos.ipynb')
