@@ -6,7 +6,9 @@ Este relatório descreve detalhadamente a metodologia aplicada no **Projeto 4**,
 
 ## 1. Origem e Preparação dos Dados
 
-A análise foi fundamentada exclusivamente no conjunto de dados consolidado `Candidatos.csv`. Antes de iniciar as análises estatísticas, os dados passaram por um rigoroso processo de preparação e limpeza:
+A análise foi fundamentada exclusivamente no conjunto de dados consolidado: Dados Acadêmicos - Classificação Racial, Renda, Sexo e Faixa Etária da plataforma Nilo Peçanha, aqui denominado de `Candidatos.csv`.
+
+Antes de iniciar as análises estatísticas, os dados passaram por um rigoroso processo de preparação e limpeza:
 
 - **Padronização:** Foram removidos espaços em branco desnecessários (trailing/leading spaces) dos nomes das colunas e dos valores textuais, garantindo consistência na manipulação das strings.
 - **Filtro de Instituição:** O estudo focou especificamente na Rede Federal. Para isso, os dados foram filtrados para incluir apenas as instituições cujos nomes iniciavam com "IF" (Institutos Federais).
