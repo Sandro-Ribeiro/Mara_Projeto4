@@ -1,0 +1,6 @@
+search_paths = [
+    "C:/Users/santu/miniconda3/envs/mara_tcc/Lib/site-packages"
+]
+disabled_diagnostics = [
+    "missing-import"
+]

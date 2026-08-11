@@ -1,0 +1,17 @@
+# Core Data Science & Analytics
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.13.0
+
+# Multivariate Data Analysis (MCA / PCA)
+prince>=0.13.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+
+# Jupyter Notebook Support
+ipykernel>=6.0.0
